@@ -1,0 +1,43 @@
+
+#include <Wire.h>           // Include the I2C library
+#include "M5_UNIT_8SERVO.h" // Include the 8 servo unit library
+#include "M5Unified.h"
+
+
+M5_UNIT_8SERVO walk_bot;    // Give a name to the M5Stack 8 Servo Unit for our walking_robot.
+
+#define R_foot 0  // right foot servo channel
+#define R_knee 1   // right knee servo channel
+#define R_hip  2   // right hip servo channel
+
+#define L_foot  4   // left foot servo channel
+#define L_knee  5   // left knee servo channel
+#define L_hip  6  // left hip servo channel
+
+
+void setup() //Runs once at power up
+{
+M5.begin();
+Wire.begin(9,10);
+M5.Power.setExtOutput(true);
+walk_bot.begin(&Wire, 32, 33, M5_UNIT_8SERVO_DEFAULT_ADDR);  // I2C pins are 32, 33 for the M5STICKC PLUS2 on the 4-way Grove connector.
+walk_bot.setAllPinMode(SERVO_CTL_MODE);   // Set the M5Stack 8 Servo Unit to servo mode.
+
+ 
+walk_bot.setServoAngle(R_foot, 90); // servo channel, degrees. At startup set to 90 deg (the servo 'neutral' position).
+delay(2000);                  // pause for a moment
+}
+
+
+void loop() // the loop function runs over and over again forever
+{
+
+walk_bot.setServoAngle(R_foot,60);   // move right foot -30 deg from 'neutral' position.
+delay(500);                         // pause for a moment
+walk_bot.setServoAngle(R_foot,90);   // 90 deg is the servo 'neutral' position.
+delay(500);                         // pause for a moment
+walk_bot.setServoAngle(R_foot,120);  // move right foot +30 deg from 'neutral' position.
+delay(500);                         // pause for a moment
+walk_bot.setServoAngle(R_foot,90);   // return to 'neutral' position.
+delay(500);                         // pause for a moment
+}
