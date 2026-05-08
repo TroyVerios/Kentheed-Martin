@@ -1,0 +1,102 @@
+
+#include <Wire.h>
+#include "M5_UNIT_8SERVO.h"
+#include "M5Unified.h"
+
+
+M5_UNIT_8SERVO walk_bot;
+
+#define R_foot 0  // right foot servo channel
+#define R_knee 1  // right knee servo channel
+#define R_hip 2   // right hip servo channel
+
+#define L_foot 3  // left foot servo channel
+#define L_knee 4  // left knee servo channel
+#define L_hip 5   // left hip servo channel
+
+void displayCurrent() {
+  float current = walk_bot.getServoCurrent();
+  M5.Lcd.fillScreen(BLACK);
+  M5.Lcd.setCursor(0, 0);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.print("Current:");
+  M5.Lcd.print(current);
+  M5.Lcd.println(" A");
+}
+
+void standStill() {
+
+  walk_bot.setServoAngle(R_foot, 90);
+  walk_bot.setServoAngle(R_knee, 90);
+  walk_bot.setServoAngle(R_hip, 90);
+  walk_bot.setServoAngle(L_foot, 90);
+  walk_bot.setServoAngle(L_knee, 90);
+  walk_bot.setServoAngle(L_hip, 90);
+}
+
+void squat() {
+}
+
+void SmoothMove(uint8_t channel, uint8_t startAngle, uint8_t endAngle, int stepDelay) {  // define all inputs in function: channel, start angle, end angle, ms elapsed
+  if (startAngle < endAngle) {                                                           // if starting angle less than end angle (so 90 to 120 movement i.e)
+    for (int angle = startAngle; angle <= endAngle; angle++) {                           // increment the angle until it reaches end angle
+      walk_bot.setServoAngle(channel, angle);                                            // incremently changes the angle of the servo
+      delay(stepDelay);                                                                  // delays it by ms elapsed
+    }
+  } else {
+    for (int angle = startAngle; angle >= endAngle; angle--) {  // same logic applied but for higher to lower angle logic
+      walk_bot.setServoAngle(channel, angle);
+      delay(stepDelay);
+    }
+  }
+}
+
+void lift_leftLeg() {
+  walk_bot.setServoAngle(L_foot, 120);
+  walk_bot.setServoAngle(L_foot, 90);
+  walk_bot.setServoAngle(L_foot, 60);
+  walk_bot.setServoAngle(L_knee, 120);
+  walk_bot.setServoAngle(L_knee, 90);
+  walk_bot.setServoAngle(L_knee, 60);
+  walk_bot.setServoAngle(L_hip, 120);
+  walk_bot.setServoAngle(L_hip, 90);
+  walk_bot.setServoAngle(L_hip, 60);
+}
+
+void plant_leftLeg() {
+}
+
+void lift_rightLeg() {
+}
+
+void plant_rightLeg() {
+}
+
+void setup() {
+  M5.begin();
+  Wire.begin(9, 10);
+  M5.Power.setExtOutput(true);
+  walk_bot.begin(&Wire, 32, 33, M5_UNIT_8SERVO_DEFAULT_ADDR);
+  walk_bot.setAllPinMode(SERVO_CTL_MODE);  // Set the M5Stack 8 Servo Unit to servo mode.
+}
+
+
+void loop()  // the loop function runs over and over again forever
+{
+
+  M5.update();
+
+  walk_bot.setServoAngle(R_foot, 170);
+  walk_bot.setServoAngle(R_hip, 170);
+  walk_bot.setServoAngle(R_knee, 170);
+
+  delay(1000);
+
+  walk_bot.setServoAngle(R_foot, 10);
+  walk_bot.setServoAngle(R_hip, 10);
+  walk_bot.setServoAngle(R_knee, 10);
+
+
+  displayCurrent();
+  delay(500);
+}
