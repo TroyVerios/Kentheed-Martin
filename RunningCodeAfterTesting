@@ -32,12 +32,23 @@ delay(2000);                  // pause for a moment
 void loop() // the loop function runs over and over again forever
 {
 
-walk_bot.setServoAngle(R_foot,60);   // move right foot -30 deg from 'neutral' position.
-delay(500);                         // pause for a moment
-walk_bot.setServoAngle(R_foot,90);   // 90 deg is the servo 'neutral' position.
-delay(500);                         // pause for a moment
-walk_bot.setServoAngle(R_foot,120);  // move right foot +30 deg from 'neutral' position.
-delay(500);                         // pause for a moment
-walk_bot.setServoAngle(R_foot,90);   // return to 'neutral' position.
-delay(500);                         // pause for a moment
+  walk_bot.setServoAngle(R_foot, 170);
+  walk_bot.setServoAngle(R_hip, 170);
+  walk_bot.setServoAngle(R_knee, 170);
+  walk_bot.setServoAngle(L_foot, 170);
+  walk_bot.setServoAngle(L_hip, 170);
+  walk_bot.setServoAngle(L_knee, 170);
+
+  delay(1000);
+
+  walk_bot.setServoAngle(R_foot, 10);
+  walk_bot.setServoAngle(R_hip, 10);
+  walk_bot.setServoAngle(R_knee, 10);
+  walk_bot.setServoAngle(L_foot, 10);
+  walk_bot.setServoAngle(L_hip, 10);
+  walk_bot.setServoAngle(L_knee, 10);
+
+  delay(1000);                    
+
+
 }
