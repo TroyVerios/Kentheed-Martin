@@ -1,0 +1,48 @@
+void SmoothMoveAllSync(int totalTime_ms,
+                       int t_R_foot, int t_R_knee, int t_R_hip,
+                       int t_L_foot, int t_L_knee, int t_L_hip)
+{
+    int targets[6] = {
+        t_R_foot, t_R_knee, t_R_hip,
+        t_L_foot, t_L_knee, t_L_hip
+    };
+
+    int start[6];
+    int maxDelta = 0;
+
+    // Save starting positions and find largest move
+    for (int i = 0; i < 6; i++) {
+        start[i] = currentAngles[i];
+
+        int delta = abs(targets[i] - start[i]);
+        if (delta > maxDelta)
+            maxDelta = delta;
+    }
+
+    if (maxDelta == 0)
+        return;
+
+    int stepDelay = totalTime_ms / maxDelta;
+
+    for (int step = 1; step <= maxDelta; step++) {
+
+        float progress = (float)step / (float)maxDelta;
+
+        for (int i = 0; i < 6; i++) {
+
+            int angle = start[i] +
+                       (targets[i] - start[i]) * progress;
+
+            walk_bot.setServoAngle(i, angle);
+            currentAngles[i] = angle;
+        }
+
+        delay(stepDelay);
+    }
+
+    // Ensure exact final positions
+    for (int i = 0; i < 6; i++) {
+        walk_bot.setServoAngle(i, targets[i]);
+        currentAngles[i] = targets[i];
+    }
+}
