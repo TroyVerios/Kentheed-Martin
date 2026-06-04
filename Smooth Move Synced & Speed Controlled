@@ -1,0 +1,55 @@
+void MoveAllAtSpeed(float speedDegPerSec,
+                    int t_R_foot, int t_R_knee, int t_R_hip,
+                    int t_L_foot, int t_L_knee, int t_L_hip)
+{
+    int targets[6] = {
+        t_R_foot, t_R_knee, t_R_hip,
+        t_L_foot, t_L_knee, t_L_hip
+    };
+
+    int start[6];
+    int maxDelta = 0;
+
+    // Find largest movement
+    for (int i = 0; i < 6; i++) {
+        start[i] = currentAngles[i];
+
+        int delta = abs(targets[i] - start[i]);
+        if (delta > maxDelta)
+            maxDelta = delta;
+    }
+
+    if (maxDelta == 0)
+        return;
+
+    // Calculate move time from desired speed
+    float moveTime_ms = (maxDelta / speedDegPerSec) * 1000.0f;
+
+    const int updatePeriod = 20; // 50Hz
+    int steps = moveTime_ms / updatePeriod;
+
+    if (steps < 1)
+        steps = 1;
+
+    for (int step = 1; step <= steps; step++) {
+
+        float progress = (float)step / (float)steps;
+
+        for (int i = 0; i < 6; i++) {
+
+            int angle = start[i] +
+                        (targets[i] - start[i]) * progress;
+
+            walk_bot.setServoAngle(i, angle);
+            currentAngles[i] = angle;
+        }
+
+        delay(updatePeriod);
+    }
+
+    // Snap to exact target
+    for (int i = 0; i < 6; i++) {
+        walk_bot.setServoAngle(i, targets[i]);
+        currentAngles[i] = targets[i];
+    }
+}
