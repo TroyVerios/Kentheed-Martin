@@ -1,0 +1,213 @@
+#include <Wire.h>
+#include "M5_UNIT_8SERVO.h"
+#include "M5Unified.h"
+#include "m5_unit_joystick2.hpp"
+
+M5_UNIT_8SERVO walk_bot;
+M5UnitJoystick2 joystick;
+
+#define R_foot 0
+#define R_knee 1
+#define R_hip  2
+#define L_foot 3
+#define L_knee 4
+#define L_hip  5
+
+int currentAngles[6] = {93, 95, 90, 90, 90, 90};
+
+// -------- leg dimensions - MEASURE THESE --------
+float l1 = 65.6;
+float l2 = 71.4;
+
+// -------- servo direction - flip to -1 if a joint moves the wrong way --------
+int LH_DIR = 1;
+int LK_DIR = 1;
+int LA_DIR = -1;
+int RH_DIR = -1;
+int RK_DIR = -1;
+int RA_DIR = 1;
+
+// -------- servo centre offsets - tune if servos aren't centred at 90 --------
+int LH_OFFSET = 18;
+int LK_OFFSET = 0;
+int LA_OFFSET = 0;
+int RH_OFFSET = -18;
+int RK_OFFSET = 6;
+int RA_OFFSET = 0;
+
+// -------- walking parameters --------
+float standZ     = 115;
+float stepLength = 20;
+float liftHeight = 12.0;
+int   walkDelay  = 1;
+
+
+void MoveAllAtSpeed(float speedDegPerSec,
+                    int t_R_foot, int t_R_knee, int t_R_hip,
+                    int t_L_foot, int t_L_knee, int t_L_hip)
+{
+    int targets[6] = {
+        t_R_foot, t_R_knee, t_R_hip,
+        t_L_foot, t_L_knee, t_L_hip
+    };
+
+    int start[6];
+    int maxDelta = 0;
+
+    for (int i = 0; i < 6; i++) {
+        start[i] = currentAngles[i];
+        int delta = abs(targets[i] - start[i]);
+        if (delta > maxDelta)
+            maxDelta = delta;
+    }
+
+    if (maxDelta == 0)
+        return;
+
+    float moveTime_ms = (maxDelta / speedDegPerSec) * 1000.0f;
+
+    const int updatePeriod = 20;
+    int steps = moveTime_ms / updatePeriod;
+    if (steps < 1) steps = 1;
+
+    for (int step = 1; step <= steps; step++) {
+        float progress = (float)step / (float)steps;
+        for (int i = 0; i < 6; i++) {
+            int angle = start[i] + (targets[i] - start[i]) * progress;
+            walk_bot.setServoAngle(i, angle);
+            currentAngles[i] = angle;
+        }
+        delay(updatePeriod);
+    }
+
+    for (int i = 0; i < 6; i++) {
+        walk_bot.setServoAngle(i, targets[i]);
+        currentAngles[i] = targets[i];
+    }
+}
+
+
+void calculateIK(float x, float z, float &hipDeg, float &kneeDeg, float &ankleDeg) {
+    float d = sqrt(x * x + z * z);
+    d = constrain(d, abs(l1 - l2) + 0.1f, l1 + l2 - 0.1f);
+
+    float kneeRad     = acos((l1*l1 + l2*l2 - d*d) / (2 * l1 * l2));
+    float angleToFoot = atan2(x, z);
+    float hipInner    = acos((l1*l1 + d*d - l2*l2) / (2 * l1 * d));
+    float hipRad      = angleToFoot + hipInner;
+
+    hipDeg   = hipRad  * 180.0f / PI;
+    kneeDeg  = 180.0f  - kneeRad * 180.0f / PI;
+    ankleDeg = -(hipDeg - kneeDeg);
+}
+
+void setLegsSimultaneous(float leftX, float leftZ, float rightX, float rightZ) {
+    float LH_deg, LK_deg, LA_deg;
+    float RH_deg, RK_deg, RA_deg;
+
+    calculateIK(leftX,  leftZ,  LH_deg, LK_deg, LA_deg);
+    calculateIK(rightX, rightZ, RH_deg, RK_deg, RA_deg);
+
+    int L_hip_angle   = constrain((int)(90 + LH_DIR * LH_deg + LH_OFFSET), 0, 180);
+    int L_knee_angle  = constrain((int)(90 + LK_DIR * LK_deg + LK_OFFSET), 0, 180);
+    int L_ankle_angle = constrain((int)(90 + LA_DIR * LA_deg + LA_OFFSET), 0, 180);
+
+    int R_hip_angle   = constrain((int)(90 + RH_DIR * RH_deg + RH_OFFSET), 0, 180);
+    int R_knee_angle  = constrain((int)(90 + RK_DIR * RK_deg + RK_OFFSET), 0, 180);
+    int R_ankle_angle = constrain((int)(90 + RA_DIR * RA_deg + RA_OFFSET), 0, 180);
+
+    MoveAllAtSpeed(100,
+        R_ankle_angle, R_knee_angle, R_hip_angle,
+        L_ankle_angle, L_knee_angle, L_hip_angle);
+}
+
+void standStill() {
+    setLegsSimultaneous(0, standZ, 0, standZ);
+}
+
+float interpolate(float startVal, float endVal, float t) {
+    return startVal + (endVal - startVal) * t;
+}
+
+void walkCycle() {
+    int steps = 30;
+
+    // left swings forward, right planted
+    for (int i = 0; i <= steps; i++) {
+        float t = (float)i / steps;
+
+        float leftX  = interpolate(-stepLength, stepLength, t);
+        float rightX = interpolate(stepLength, -stepLength, t);
+        float leftZ  = standZ - liftHeight * sin(PI * t);
+        float rightZ = standZ;
+
+        setLegsSimultaneous(leftX, leftZ, rightX, rightZ);
+        delay(walkDelay);
+    }
+
+    // right swings forward, left planted
+    for (int i = 0; i <= steps; i++) {
+        float t = (float)i / steps;
+
+        float leftX  = interpolate(stepLength, -stepLength, t);
+        float rightX = interpolate(-stepLength, stepLength, t);
+        float leftZ  = standZ;
+        float rightZ = standZ - liftHeight * sin(PI * t);
+
+        setLegsSimultaneous(leftX, leftZ, rightX, rightZ);
+        delay(walkDelay);
+    }
+}
+
+
+void displayCurrent() {
+  float current = walk_bot.getServoCurrent();
+  int battery = M5.Power.getBatteryLevel();
+  
+  M5.Lcd.setCursor(0, 0);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.printf("I: %.2fA    \n", current); // spaces overwrite old text
+  M5.Lcd.printf("Bat: %d%%   \n", battery);
+}
+
+void squat() {
+   
+  MoveAllAtSpeed(10, 120, 10, 10, 60, 180, 170);
+    delay(750);
+    MoveAllAtSpeed(10, 110, 50, 50, 60, 140, 140);
+    delay(750);
+
+}
+
+void setup() {
+    M5.begin();
+    walk_bot.begin(&Wire, 9, 10, M5_UNIT_8SERVO_DEFAULT_ADDR);
+    walk_bot.setAllPinMode(SERVO_CTL_MODE);
+    joystick.begin(&Wire, JOYSTICK2_ADDR, 9, 10);
+    delay(2000);
+    standStill();
+    delay(1000);
+  
+}
+
+void loop() {
+  M5.update();
+
+
+  int8_t y    = joystick.get_joy_adc_8bits_offset_value_y();
+  uint8_t btn = joystick.get_button_value();
+
+  if (btn == 0) {
+    delay(50); // debounce
+    if (joystick.get_button_value() == 0) { // confirm it's still pressed
+      squat();
+    }
+  } else if (y > 20) {
+    walkDelay = map(y, 20, 127, 25, 1);
+    walkCycle();
+  } else {
+    standStill();
+  }
+
+
+}
